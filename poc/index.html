@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GeoLibre Toolbox PoC</title>
+<style>
+  body{font:14px system-ui;margin:0;display:flex;height:100vh}
+  #side{width:300px;border-right:1px solid #ddd;display:flex;flex-direction:column}
+  #side input{margin:8px;padding:6px}
+  #list{overflow:auto;flex:1}
+  #list div{padding:4px 10px;cursor:pointer} #list div:hover{background:#eef}
+  #main{flex:1;padding:16px;overflow:auto}
+  label{display:block;margin:8px 0 2px;font-weight:600} small{color:#666;display:block}
+  pre{background:#f6f6f6;padding:8px;max-height:200px;overflow:auto}
+</style>
+</head>
+<body>
+<div id="side"><input id="q" placeholder="搜索工具 / search tools" /><div id="status" style="padding:0 10px;color:#666"></div><div id="list"></div></div>
+<div id="main"><h2 id="title">选择左侧工具</h2><div id="form"></div><pre id="log"></pre><div id="out"></div></div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

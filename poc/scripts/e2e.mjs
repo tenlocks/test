@@ -1,0 +1,24 @@
+// E2E: open built app under a sub-path, pick slope, upload synthetic DEM, run, download result.
+import { chromium } from "/opt/node-tools/node_modules/playwright/index.mjs";
+import { writeArrayBuffer } from "geotiff";
+import { writeFileSync, mkdirSync } from "node:fs";
+const url = process.argv[2];
+const W = 64, H = 64, d = new Float32Array(W * H);
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) d[y * W + x] = 100 + x * 2 + Math.sin(y / 6) * 5;
+const dem = Buffer.from(await writeArrayBuffer(d, { width: W, height: H, GTRasterTypeGeoKey: 1, GTModelTypeGeoKey: 2, GeographicTypeGeoKey: 4326, ModelPixelScale: [0.001, 0.001, 0], ModelTiepoint: [0, 0, 0, 10, 50, 0] }));
+mkdirSync("/tmp/e2e", { recursive: true }); writeFileSync("/tmp/e2e/dem.tif", dem);
+const b = await chromium.launch({ executablePath: process.env.CHROME || undefined });
+const p = await b.newPage({ acceptDownloads: true });
+p.on("console", (m) => m.type() === "error" && console.log("[console.error]", m.text()));
+p.on("pageerror", (e) => console.log("[pageerror]", e.message));
+p.on("requestfailed", (r) => console.log("[reqfailed]", r.url()));
+const t0 = Date.now();
+await p.goto(url); await p.waitForFunction(() => window.__ready, null, { timeout: 120000 });
+console.log("ready in", Date.now() - t0, "ms;", await p.textContent("#status"));
+await p.fill("#q", "slope"); await p.click('#list div[data-id="slope"]');
+await p.setInputFiles('input[data-param="input"]', "/tmp/e2e/dem.tif");
+await p.click("#run"); await p.waitForSelector("a.dl", { timeout: 60000 });
+console.log(await p.textContent("#log"));
+const [dl] = await Promise.all([p.waitForEvent("download"), p.click("a.dl")]);
+await dl.saveAs("/tmp/e2e/slope_out.tif"); console.log("downloaded", dl.suggestedFilename());
+await b.close();
