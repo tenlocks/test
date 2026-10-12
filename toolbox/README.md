@@ -6,23 +6,32 @@ monorepo 里物理裁剪出来的独立 Vite 工程：1069 个工具、参数表
 
 > 这是 D2 方案的验证产物（PoC），用来回答「剥离到底要多少工作量」。结论见文末。
 
-## 本地运行
+## 本地运行（SVN 检出后）
 
-需要 Node 20+（本仓库在 Node 22 上验证）。
+需要 Node 20+（在 Node 22 上验证）。整个 `toolbox/` 目录是自包含的，不依赖 git，也没有符号链接，
+可以原样放进 SVN 工作副本：
 
 ```bash
+svn checkout <你的仓库>/toolbox   # 或把本目录拷进已有工作副本后 svn add / svn commit
 cd toolbox
 npm install
-npm run dev          # http://localhost:5173  （首次打开会加载 ~30 MB wasm，等几秒）
+npm start                          # http://127.0.0.1:5173 ，首次打开要加载 ~30 MB wasm，等几秒
 ```
+
+提交进 SVN 时请忽略生成目录（否则 `node_modules` 会有上万个文件）：
 
 ```bash
-npm run build        # 产物在 dist/，base 为相对路径，可挂到任意子目录
-npm run preview
-npm run typecheck
+svn propset svn:ignore "node_modules
+dist
+e2e-out" .
 ```
 
+其他命令：`npm run build`（产物在 `dist/`，相对路径，可挂到任意子目录）、`npm run preview`、`npm run typecheck`。
 页面右上角可切换 中文 / English（也支持 `?lang=zh`）。
+
+> 已在“无 .git 的纯目录副本”里验证过 `npm install` → `npm start` → 端到端测试。
+> **未在 Windows 上验证**：npm workspaces 在 Windows 上会建目录联接（junction），通常可用，
+> 若 `npm install` 报权限错误，请用管理员终端或开启“开发人员模式”。
 
 ### 试一下
 

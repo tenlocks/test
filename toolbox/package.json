@@ -8,6 +8,7 @@
     "packages/*"
   ],
   "scripts": {
+    "start": "vite --host 127.0.0.1 --port 5173",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
@@ -42,5 +43,8 @@
   },
   "overrides": {
     "geolibre-wasm": "1.5.9"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
