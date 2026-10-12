@@ -91,26 +91,69 @@ public/whitebox-catalog-snapshot.json   运行时 fetch 的工具元数据快照
 
 ## 已验证 / 未验证
 
-已验证（Linux 云容器，Chromium，子路径部署 `/compute/toolbox/`）：
-- 类型检查通过；`vite build` 约 4 秒；`npm install` 约 35 秒
+已验证（Linux 云容器，Chromium）：
+- 类型检查通过；`vite build` 约 4 秒；`npm install` 约 6~35 秒
 - Slope（平均坡度 1.589°，理论 ≈1.6°）、Hillshade、Aspect（平均 268.8°，DEM 向东升高所以坡向西）
 - Buffer Vector：矢量上传 → 运行 → 下载
-- 1069 个工具全部载入
+- 1069 个工具全部载入；中文 / 英文界面
+- **真实 Tomcat 9.0.100**：部署为 `/toolbox/`，直接访问通过；
+- **Vue 2.6.14 页面通过 iframe 嵌入**（同一个 Tomcat，`../toolbox/`）：加载、运行、下载均通过
 
-**未验证**：Windows、Tomcat 实机、大文件（内存/耗时）、LiDAR/OBIA/模型构建器等重型工具、
-浏览器兼容性（只测了 Chromium）。
+**未验证**：Windows（`npm install` 的 workspace 联接）、Tomcat 8.5 / 10、跨域部署、大文件（内存/耗时）、
+LiDAR / OBIA / 模型构建器等重型工具、除 Chromium 外的浏览器。
 
-## 部署注意
+## 部署到 Tomcat / 嵌入 Vue
 
-- `.wasm` 必须以 `application/wasm` 提供（`WebAssembly.compileStreaming` 要求）。Tomcat 默认是否带该映射
-  **未验证**，不带则在 `web.xml` 加：
-  ```xml
-  <mime-mapping><extension>wasm</extension><mime-type>application/wasm</mime-type></mime-mapping>
-  ```
-- 首屏下载约 30 MB 未压缩 wasm（gzip 后约 14 MB，含 ONNX 运行时 14 MB / 3.7 MB gz）。需开启 gzip + 长缓存。
-- 工具在 Web Worker 里跑，不会冻结页面。
-- 依赖 `geolibre-wasm`：`packages/processing/package.json` 写的是 `^1.5.9`，会解析到 1.6.0；
-  上游 lockfile 锁 1.5.9。两者在本次测试中行为一致，生产建议固定版本。
+### 1. 部署
+
+```bash
+npm run build            # 产物 dist/ 自带 WEB-INF/web.xml（资源缓存 1 年，index.html 每次校验）
+# 把 dist/ 整个目录拷成 Tomcat 的 webapps/toolbox/ 即可（base 是相对路径，改成别的目录名也行）
+```
+
+在 `conf/server.xml` 的 8080 `<Connector>` 上**开启压缩，并把 wasm 加进可压缩类型**——这一步最重要，
+Tomcat 默认不压缩，也不认 wasm 为可压缩类型：
+
+```xml
+<Connector port="8080" protocol="HTTP/1.1" ...
+           compression="on" compressionMinSize="2048"
+           compressibleMimeType="text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json,application/wasm,image/svg+xml" />
+```
+
+实测（Tomcat 9.0.100）：
+
+| | 未压缩 | gzip |
+|---|---|---|
+| 主 wasm `geolibre-cli` | 23.8 MB | **7.9 MB** |
+| 首屏实际下载（CSS + JS + 目录快照 + 主 wasm） | ≈ 26 MB | **≈ 9 MB** |
+| 全部资源（含按需加载的 ONNX 14 MB 等） | 47.9 MB | 14.6 MB |
+
+- `.wasm` 的 `Content-Type: application/wasm` 在 Tomcat 9.0.100 的默认 `web.xml` 里已有映射；
+  其它版本若没有，在 `conf/web.xml` 加
+  `<mime-mapping><extension>wasm</extension><mime-type>application/wasm</mime-type></mime-mapping>`。
+- 如果前面还有 Nginx / 网关，同样要对 `application/wasm` 开 gzip，并保持 `Content-Type`。
+- **首屏耗时**：本机 localhost 冷缓存约 6.2 秒显示工具目录，缓存预热后仍约 5.5 秒——
+  主要是 wasm 编译 + 生成工具清单，不是下载。内网带宽再好也省不掉，需要的话可以另行优化（例如缓存清单），目前未做。
+
+### 2. 嵌入 Vue 2.6 —— 用 iframe
+
+```html
+<iframe src="../toolbox/?lang=zh" style="width:100%;height:100%;border:0"></iframe>
+```
+
+完整示例见 `examples/vue2-iframe.html`（已用 Vue 2.6.14 + Tomcat 实测）。**推荐 iframe，不建议把它做成 Vue 组件**：
+工具箱是 React 19 + Tailwind，Tailwind 的全局样式重置会污染 Vue 页面，iframe 天然隔离样式、脚本和 React 版本。
+（“在 Vue 里直接挂载 React”我没有试，只是基于上面的原因不推荐。）
+
+### 3. 现在的能力边界（重要）
+
+iframe 嵌入“能显示、能用”，但**还没有和你的平台打通**：
+- 输入：只能用户在界面里选本地文件，**不能**由 Vue 页面传入文件或平台存储里的数据；
+- 输出：栅格 / 报告走浏览器下载，矢量在顶部结果条下载，**不会**回传给 Vue 页面；
+- 没有 `postMessage` 接口，也没有登录 / 权限处理。
+
+要对接平台存储和回传结果，需要加一个 `postMessage` 桥（Vue → 工具箱传入数据，工具箱 → Vue 回传输出），
+估算 1~2 天，**未做**。
 
 ## D2 工作量结论（证据 + 估算）
 
@@ -131,11 +174,14 @@ public/whitebox-catalog-snapshot.json   运行时 fetch 的工具元数据快照
 | 阶段 | 估算 | 说明 |
 |---|---|---|
 | 纯裁剪（达到本仓库当前状态） | **1.5 ~ 2 天** | 熟悉代码库的开发者；我在云容器里一个会话完成，但含大量并行读代码，不能直接等同于人天 |
-| 嵌入 Vue 2.6 计算中心（iframe + postMessage / URL 参数，输入输出对接平台存储而不是本地选文件） | 1 ~ 2 天 | **未做**。这是最大的不确定项 |
-| Tomcat 部署实测（wasm MIME、gzip、缓存、内网首屏 ~14 MB gz） | 0.5 ~ 1 天 | **未做** |
+| iframe 嵌入 Vue 2.6 + 同一 Tomcat 部署 | **已做并实测**（约半天） | 见上节；含 gzip / 缓存配置 |
+| 与平台打通（postMessage 桥：平台存储作为输入、结果回传 Vue、权限） | 1 ~ 2 天 | **未做**，最大的不确定项 |
+| 首屏优化（缓存工具清单等，当前 ≈ 6 秒） | 0.5 ~ 1 天 | 可选，**未做** |
 | 大文件 / 重型工具（LiDAR、OBIA）的内存与耗时验证 | ~1 天 | **未做** |
-| 合计到“可用的嵌入版” | **约 4 ~ 7 天** | |
+| 合计到“可用的嵌入版”（含平台打通，不含首屏优化） | **约 3.5 ~ 6 天** | 在原 4~7 天基础上扣除已完成的嵌入与部署 |
 
 对比两个原估值：「2~3 天」对**纯裁剪**基本成立；「5~12 天」对纯裁剪偏高（它依据的“深度耦合 MapLibre”不成立），
 但作为“含集成与加固的总工期”并不离谱。持续成本：GeoLibre 迭代很快（3.3.0，3100+ 文件），每次同步需要
 重新核对这 ~26 个文件 + shim 接口。
+
+> `geolibre-wasm` 已在根 `package.json` 的 `overrides` 里固定为 1.5.9（与上游 lockfile 一致）；不固定时 `^1.5.9` 会解析到 1.6.0。

@@ -1,0 +1,15 @@
+<!doctype html>
+<!--
+  Minimal Vue 2.6 host that embeds the toolbox in an <iframe>.
+  Verified on Tomcat 9.0.100: put this page in webapps/portal/ next to webapps/toolbox/ (the contents of dist/).
+  The relative path "../toolbox/" keeps working under any context path. Add ?lang=zh|en to pick a language.
+-->
+<html><head><meta charset="utf-8"><title>Vue 2.6 host</title>
+<style>body{margin:0}#app{display:flex;flex-direction:column;height:100vh}iframe{flex:1;border:0;width:100%}</style></head>
+<body><div id="app">
+  <header><button @click="show=!show">{{ show ? 'Close toolbox' : 'Open toolbox' }}</button></header>
+  <iframe v-if="show" :src="src" title="toolbox"></iframe>
+</div>
+<script src="vue.min.js"></script>
+<script>new Vue({ el: '#app', data: { show: true, src: '../toolbox/?lang=zh' } });</script>
+</body></html>
