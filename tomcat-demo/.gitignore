@@ -1,0 +1,7 @@
+# Tomcat runtime output
+tomcat/logs/*
+tomcat/temp/*
+tomcat/work/*
+!tomcat/logs/.gitkeep
+!tomcat/temp/.gitkeep
+!tomcat/work/.gitkeep

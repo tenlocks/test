@@ -1,0 +1,5 @@
+# Windows batch files must keep CRLF; shell scripts must keep LF (even if checked out on Windows).
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.sh text eol=lf
+tomcat-demo/tomcat/bin/*.sh text eol=lf

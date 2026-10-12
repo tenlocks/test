@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- Vue 2.6 host page that embeds the GeoLibre toolbox. Replace this with your own Vue app:
+     all that embedding needs is the <iframe> below. vue.min.js is Vue 2.6.14, bundled so it works offline. -->
+<html><head><meta charset="utf-8"><title>计算中心（Vue 2.6 示例宿主）</title>
+<style>
+  body{margin:0;font:14px system-ui,"Microsoft YaHei",sans-serif}
+  #app{display:flex;flex-direction:column;height:100vh}
+  header{padding:8px 16px;border-bottom:1px solid #ddd;display:flex;gap:12px;align-items:center;background:#f7f7f9}
+  button{padding:4px 12px;cursor:pointer}
+  iframe{flex:1;border:0;width:100%}
+  .muted{color:#777}
+</style></head>
+<body>
+<div id="app">
+  <header>
+    <b>计算中心</b>
+    <button id="toggle" @click="show = !show">{{ show ? '关闭工具箱' : '打开工具箱' }}</button>
+    <button @click="lang = lang === 'zh' ? 'en' : 'zh'">{{ lang === 'zh' ? 'English' : '中文' }}</button>
+    <span id="ver" class="muted">Vue {{ v }}（宿主）</span>
+    <span class="muted">· 工具箱在 iframe 中，同源：{{ src }}</span>
+  </header>
+  <iframe id="tb" v-if="show" :src="src" title="toolbox"></iframe>
+  <div v-else style="padding:24px" class="muted">工具箱已关闭（iframe 已销毁，释放内存）。</div>
+</div>
+<script src="vue.min.js"></script>
+<script>
+  new Vue({
+    el: '#app',
+    data: { show: true, lang: 'zh', v: Vue.version },
+    computed: { src: function () { return '../toolbox/?lang=' + this.lang; } }
+  });
+</script>
+</body></html>
