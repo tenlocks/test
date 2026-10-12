@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node", "react", "react-dom", "vite/client"],
+    "paths": {
+      "@geolibre/map": ["./src/shims/map.ts"]
+    }
+  },
+  "include": ["src", "packages/*/src"]
+}
